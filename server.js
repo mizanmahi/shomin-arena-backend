@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const { MongoClient } = require('mongodb');
+const ObjectId = require('mongodb').ObjectId;
 // const admin = require('firebase-admin');
 const dotenv = require('dotenv').config();
 
@@ -25,13 +26,49 @@ const main = async () => {
 
       const database = client.db('shomin-arena');
       const headphoneCollection = database.collection('headphones');
+      const ordersCollection = database.collection('orders');
 
     // APIs
-    
 
+      // GET all products
+      app.get('/headphones', async (req, res) => {
+         const headphones = await headphoneCollection.find({}).toArray();
+         res.json(headphones);
+      })
 
+      // GET a product by id
+      app.get('/headphones/:id', async (req, res) => {
+         const headphone = await headphoneCollection.findOne({ _id: ObjectId(req.params.id) });
+         res.json(headphone);
+      });
+      
+      // POST add a product
+      app.post('/headphones', async (req, res) => {
+         const { name, price, discountedPrice ,description, imageUrl } = req.body;
+         const headphone = { name, price, discountedPrice ,description, imageUrl };
+         const result = await headphoneCollection.insertOne(headphone);
+         res.json({ message: 'Product added successfully', headphoneId: result.insertedId });
+    })
 
+    // POST save an orders
+    app.post('/orders', async (req, res) => {
+       const order = req.body;
+       const result = await ordersCollection.insertOne(order);
+       res.json({ message: 'Order added successfully', orderId: result.insertedId });
+    })
 
+      // GET all orders
+      app.get('/orders', async (req, res) => {
+         const orders = await ordersCollection.find({}).toArray();
+         res.json(orders);
+      })
+
+      // DELETE an order by id
+      app.delete('/orders/:id', async (req, res) => {
+         const {id} = req.params
+         const result = await ordersCollection.deleteOne({ _id: ObjectId(id) });
+         res.json({ message: 'Order deleted successfully', deletedId: id });
+      })
 
    } catch (err) {
       console.error(err);
