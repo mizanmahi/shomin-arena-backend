@@ -27,6 +27,8 @@ const main = async () => {
       const database = client.db('shomin-arena');
       const headphoneCollection = database.collection('headphones');
       const ordersCollection = database.collection('orders');
+      const reviewsCollection = database.collection('reviews');
+      const userCollection = database.collection('users');
 
     // APIs
 
@@ -69,6 +71,27 @@ const main = async () => {
          const result = await ordersCollection.deleteOne({ _id: ObjectId(id) });
          res.json({ message: 'Order deleted successfully', deletedId: id });
       })
+
+      //POST a review
+      app.post('/reviews', async (req, res) => {
+         const review = req.body;
+         const result = await reviewsCollection.insertOne(review);
+         res.json({ message: 'Review added successfully', reviewId: result.insertedId });
+      })
+
+      // GET all reviews
+      app.get('/reviews', async (req, res) => {
+         const reviews = await reviewsCollection.find({}).toArray();
+         res.json(reviews);
+      });
+
+      // POST, save a user info
+      app.post('/users', async (req, res) => {
+         const user = req.body;
+         const { insertedId } = await userCollection.insertOne(user);
+         user._id = insertedId;
+         res.json(user);
+      });
 
    } catch (err) {
       console.error(err);
