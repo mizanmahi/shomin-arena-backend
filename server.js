@@ -30,54 +30,80 @@ const main = async () => {
       const reviewsCollection = database.collection('reviews');
       const userCollection = database.collection('users');
 
-    // APIs
+      // APIs
 
       // GET all products
       app.get('/headphones', async (req, res) => {
          const headphones = await headphoneCollection.find({}).toArray();
          res.json(headphones);
-      })
+      });
 
       // GET a product by id
       app.get('/headphones/:id', async (req, res) => {
-         const headphone = await headphoneCollection.findOne({ _id: ObjectId(req.params.id) });
+         const headphone = await headphoneCollection.findOne({
+            _id: ObjectId(req.params.id),
+         });
          res.json(headphone);
       });
-      
+
       // POST add a product
       app.post('/headphones', async (req, res) => {
-         const { name, price, discountedPrice ,description, imageUrl } = req.body;
-         const headphone = { name, price, discountedPrice ,description, imageUrl };
+         const { name, price, discountedPrice, description, imageUrl } =
+            req.body;
+         const headphone = {
+            name,
+            price,
+            discountedPrice,
+            description,
+            imageUrl,
+         };
          const result = await headphoneCollection.insertOne(headphone);
-         res.json({ message: 'Product added successfully', headphoneId: result.insertedId });
-    })
+         res.json({
+            message: 'Product added successfully',
+            headphoneId: result.insertedId,
+         });
+      });
 
-    // POST save an orders
-    app.post('/orders', async (req, res) => {
-       const order = req.body;
-       const result = await ordersCollection.insertOne(order);
-       res.json({ message: 'Order added successfully', orderId: result.insertedId });
-    })
+      // POST save an orders
+      app.post('/orders', async (req, res) => {
+         const order = req.body;
+         const result = await ordersCollection.insertOne(order);
+         res.json({
+            message: 'Order added successfully',
+            orderId: result.insertedId,
+         });
+      });
 
       // GET all orders
       app.get('/orders', async (req, res) => {
          const orders = await ordersCollection.find({}).toArray();
          res.json(orders);
-      })
+      });
+
+      // GET customer specific order
+      app.get('/myOrders', async (req, res) => {
+         const { email } = req.query;
+         const orders = await ordersCollection.find({ email }).toArray();
+         console.log(orders);
+         res.json(orders);
+      });
 
       // DELETE an order by id
       app.delete('/orders/:id', async (req, res) => {
-         const {id} = req.params
+         const { id } = req.params;
          const result = await ordersCollection.deleteOne({ _id: ObjectId(id) });
          res.json({ message: 'Order deleted successfully', deletedId: id });
-      })
+      });
 
       //POST a review
       app.post('/reviews', async (req, res) => {
          const review = req.body;
          const result = await reviewsCollection.insertOne(review);
-         res.json({ message: 'Review added successfully', reviewId: result.insertedId });
-      })
+         res.json({
+            message: 'Review added successfully',
+            reviewId: result.insertedId,
+         });
+      });
 
       // GET all reviews
       app.get('/reviews', async (req, res) => {
@@ -90,6 +116,14 @@ const main = async () => {
          const user = req.body;
          const { insertedId } = await userCollection.insertOne(user);
          user._id = insertedId;
+         res.json(user);
+      });
+
+      app.get('/users/:email', async (req, res) => {
+         const { email } = req.params;
+         console.log(email);
+         const user = await userCollection.findOne({ email });
+         console.log(user);
          res.json(user);
       });
 
