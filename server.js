@@ -2,8 +2,14 @@ const express = require('express');
 const cors = require('cors');
 const { MongoClient } = require('mongodb');
 const ObjectId = require('mongodb').ObjectId;
-// const admin = require('firebase-admin');
+const admin = require('firebase-admin');
 const dotenv = require('dotenv').config();
+
+admin.initializeApp({
+   credential: admin.credential.cert(
+      JSON.parse(process.env.FIREBASE_SERVICE_ACC_SDK)
+   ),
+});
 
 const app = express();
 const port = process.env.PORT || 5000; // important for deploy
@@ -17,6 +23,29 @@ const client = new MongoClient(uri, {
    useNewUrlParser: true,
    useUnifiedTopology: true,
 });
+
+//@ token verifying middleware
+const verifyToken = async (req, res, next) => {
+   if (
+      req.headers?.authorization &&
+      req.headers?.authorization?.startsWith('Bearer ')
+   ) {
+      const idToken = req.headers.authorization.split('Bearer ')[1];
+      try {
+         const decodedIdToken = await admin.auth().verifyIdToken(idToken);
+         req.decodedEmail = decodedIdToken.email;
+         return next();
+      } catch (error) {
+         console.log('Error while verifying Firebase ID token:', error.message);
+         return res.status(403).json({ message: error.message });
+      }
+   } else {
+      console.log(
+         'No Firebase ID token was passed as a Bearer token in the Authorization header.'
+      );
+      return res.status(403).json({ message: 'Unauthorized' });
+   }
+};
 
 const main = async () => {
    try {
@@ -48,15 +77,8 @@ const main = async () => {
 
       // POST add a product
       app.post('/headphones', async (req, res) => {
-         const { name, price, discountedPrice, description, imageUrl } =
-            req.body;
-         const headphone = {
-            name,
-            price,
-            discountedPrice,
-            description,
-            imageUrl,
-         };
+         const headphone = req.body;
+         console.log(headphone);
          const result = await headphoneCollection.insertOne(headphone);
          res.json({
             message: 'Product added successfully',
@@ -95,6 +117,16 @@ const main = async () => {
          res.json({ message: 'Order deleted successfully', deletedId: id });
       });
 
+      // PUT update and order status
+      app.put('/orders/:id', async (req, res) => {
+         const { id } = req.params;
+         const result = await ordersCollection.updateOne(
+            { _id: ObjectId(id) },
+            { $set: { status: 'shipped' } }
+         );
+         res.json(result);
+      });
+
       //POST a review
       app.post('/reviews', async (req, res) => {
          const review = req.body;
@@ -121,12 +153,32 @@ const main = async () => {
 
       app.get('/users/:email', async (req, res) => {
          const { email } = req.params;
-         console.log(email);
          const user = await userCollection.findOne({ email });
-         console.log(user);
          res.json(user);
       });
 
+      app.put('/users/admin', verifyToken, async (req, res) => {
+         const { email } = req.body;
+         const { decodedEmail } = req;
+
+         if (decodedEmail) {
+            const requester = await userCollection.findOne({
+               email: decodedEmail,
+            });
+            if (requester.role === 'admin') {
+               const result = await userCollection.updateOne(
+                  { email },
+                  { $set: { role: 'admin' } }
+               );
+               console.log(result);
+               res.json(result);
+            } else {
+               res.status(403).json({
+                  message: 'You are not allowed to make admin',
+               });
+            }
+         }
+      });
    } catch (err) {
       console.error(err);
    } finally {
