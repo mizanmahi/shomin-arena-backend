@@ -3,6 +3,7 @@ const cors = require('cors');
 const { MongoClient } = require('mongodb');
 const ObjectId = require('mongodb').ObjectId;
 const admin = require('firebase-admin');
+const { default: axios } = require('axios');
 const dotenv = require('dotenv').config();
 
 admin.initializeApp({
@@ -67,7 +68,7 @@ const main = async () => {
          res.json(headphones);
       });
 
-      // GET a product by id
+      // GET a headphone by id
       app.get('/headphones/:id', async (req, res) => {
          const headphone = await headphoneCollection.findOne({
             _id: ObjectId(req.params.id),
@@ -75,16 +76,21 @@ const main = async () => {
          res.json(headphone);
       });
 
-      // POST add a product
+      // POST add a headphone
       app.post('/headphones', async (req, res) => {
          const headphone = req.body;
-         console.log(headphone);
          const result = await headphoneCollection.insertOne(headphone);
          res.json({
             message: 'Product added successfully',
             headphoneId: result.insertedId,
          });
       });
+
+      // DELETE delete a headphone by id
+      app.delete('/headphones/:id', async (req, res) => {
+         const result = await headphoneCollection.deleteOne({_id: ObjectId(req.params.id)});
+         res.json(result)
+      })
 
       // POST save an orders
       app.post('/orders', async (req, res) => {
@@ -106,7 +112,6 @@ const main = async () => {
       app.get('/myOrders', async (req, res) => {
          const { email } = req.query;
          const orders = await ordersCollection.find({ email }).toArray();
-         console.log(orders);
          res.json(orders);
       });
 
@@ -170,7 +175,6 @@ const main = async () => {
                   { email },
                   { $set: { role: 'admin' } }
                );
-               console.log(result);
                res.json(result);
             } else {
                res.status(403).json({
