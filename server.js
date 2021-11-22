@@ -5,6 +5,8 @@ const ObjectId = require('mongodb').ObjectId;
 const admin = require('firebase-admin');
 const { default: axios } = require('axios');
 const dotenv = require('dotenv').config();
+const stripe = require('stripe')(process.env.STRIPE_SECRET);
+const fileUpload = require('express-fileupload');
 
 admin.initializeApp({
    credential: admin.credential.cert(
@@ -17,7 +19,8 @@ const port = process.env.PORT || 5000; // important for deploy
 
 // middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({limit: 2000000}));
+app.use(fileUpload());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@phero-crud.9f5td.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, {
@@ -78,7 +81,15 @@ const main = async () => {
 
       // POST add a headphone
       app.post('/headphones', async (req, res) => {
-         const headphone = req.body;
+         // console.log('body',req.body); this will hold the all other data without files
+         // console.log('file',req.files); this will hold the file comes with the form data
+         console.log('sdjfsdk');
+         const image = req.files.image;
+         const imageData = image?.data;
+         const encodedImage = imageData.toString('base64');
+         const imageBuffer = Buffer.from(encodedImage, 'base64');
+
+         const headphone = {...req.body, imageUrl: imageBuffer}
          const result = await headphoneCollection.insertOne(headphone);
          res.json({
             message: 'Product added successfully',
@@ -88,9 +99,11 @@ const main = async () => {
 
       // DELETE delete a headphone by id
       app.delete('/headphones/:id', async (req, res) => {
-         const result = await headphoneCollection.deleteOne({_id: ObjectId(req.params.id)});
-         res.json(result)
-      })
+         const result = await headphoneCollection.deleteOne({
+            _id: ObjectId(req.params.id),
+         });
+         res.json(result);
+      });
 
       // POST save an orders
       app.post('/orders', async (req, res) => {
@@ -122,13 +135,20 @@ const main = async () => {
          res.json({ message: 'Order deleted successfully', deletedId: id });
       });
 
-      // PUT update and order status
+      // PUT update order status
       app.put('/orders/:id', async (req, res) => {
          const { id } = req.params;
          const result = await ordersCollection.updateOne(
             { _id: ObjectId(id) },
             { $set: { status: 'shipped' } }
          );
+         res.json(result);
+      });
+
+      app.get('/orders/:id', async (req, res) => {
+         const result = await ordersCollection.findOne({
+            _id: ObjectId(req.params.id),
+         });
          res.json(result);
       });
 
@@ -182,6 +202,23 @@ const main = async () => {
                });
             }
          }
+      });
+
+      app.post('/create-payment-intent', async (req, res) => {
+         const paymentInfo = req.body;
+         const amount = parseInt(paymentInfo.price) * 100;
+         console.log(amount);
+
+         // Create a PaymentIntent with the order amount and currency
+         const paymentIntent = await stripe.paymentIntents.create({
+            amount,
+            currency: 'usd',
+            payment_method_types: ['card'],
+         });
+
+         res.json({
+            clientSecret: paymentIntent.client_secret,
+         });
       });
    } catch (err) {
       console.error(err);
