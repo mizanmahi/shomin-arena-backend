@@ -62,6 +62,7 @@ const main = async () => {
       const ordersCollection = database.collection('orders');
       const reviewsCollection = database.collection('reviews');
       const userCollection = database.collection('users');
+      const newsletterEmailCollection = database.collection('newsletterEmail');
 
       // APIs
 
@@ -220,6 +221,14 @@ const main = async () => {
             clientSecret: paymentIntent.client_secret,
          });
       });
+
+      app.post('/newsletterEmail', async (req, res) => {
+         const {newsletterEmail} = req.body;
+         console.log(`Received newsletter email: ${newsletterEmail}`);
+         const result = await newsletterEmailCollection.insertOne({newsletterEmail}, {upsert: true});
+         res.json(result);
+      })
+
    } catch (err) {
       console.error(err);
    } finally {
